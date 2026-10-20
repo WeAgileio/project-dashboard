@@ -62,7 +62,7 @@ async function login() {
 <template>
   <div class="login-page">
     <div class="login-card">
-      <h1 class="login-title">{{ isNotion ? "Notion 儀表板" : "Asana 儀表板" }}</h1>
+      <h1 class="login-title">project-dashboard</h1>
       <p class="login-desc">
         {{
           isNotion

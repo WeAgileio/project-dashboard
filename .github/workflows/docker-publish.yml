@@ -14,7 +14,7 @@ on:
     types: [published]
 
 env:
-  IMAGE_NAME: yuminggood/asana_dashboard
+  IMAGE_NAME: yuminggood/project-dashboard
 
 jobs:
   docker:

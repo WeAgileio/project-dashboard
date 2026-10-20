@@ -1,4 +1,4 @@
-# Asana 儀表板
+# project-dashboard
 
 以 **Vue 3 + TypeScript + Pinia + Vite** 建置的前端，搭配 **Node.js + Express** 後端處理 Asana OAuth／權杖與 API Proxy。登入後可在同一套介面檢視 **十週任務更新統計**、**專案進展（月欄表）**、**請款進展** 與 **請款進展·時間序**。
 
@@ -95,7 +95,7 @@ cp .env.example .env
 
 | 變數 | 說明 |
 |------|------|
-| `DASHBOARD_IMAGE` | **選用。** 覆寫預設映像（預設 `yuminggood/asana_dashboard:v1.14.0`） |
+| `DASHBOARD_IMAGE` | **選用。** 覆寫預設映像（預設 `yuminggood/project-dashboard:v1.14.0`） |
 | `PORT` | **選用。** 容器內後端埠，預設 `3001`（對應 compose 內 `PORT: ${PORT:-3001}`） |
 | `DATA_SOURCE` | **選用。** `asana`（預設）或 `notion`。由 compose 傳入容器，改完重啟即可，不必重建映像 |
 | `NOTION_ROOT_PAGE_ID` | **選用。** Notion 專案總表根頁面 ID。未設定時用預設總表 |
@@ -158,7 +158,7 @@ docker compose up --build
 建置並標籤（範例與 Docker Hub 倉庫一致）。請款相關欄位需寫進前端時請加 **build-arg**（否則用程式內建預設名稱）；**請款進展**是／否欄位可選 **`VITE_BILLING_TASK_FIELD`**：
 
 ```bash
-docker build -t yuminggood/asana_dashboard:latest -t yuminggood/asana_dashboard:1.9.0 \
+docker build -t yuminggood/project-dashboard:latest -t yuminggood/project-dashboard:1.9.0 \
   --build-arg VITE_BILLING_FIELD=請款金額 \
   --build-arg VITE_BILLING_TASK_FIELD=請款進展 .
 ```
@@ -168,14 +168,14 @@ docker build -t yuminggood/asana_dashboard:latest -t yuminggood/asana_dashboard:
 ```bash
 # 只建 ARM64/v8（可 --load 到本機）
 docker buildx build --platform linux/arm64/v8 \
-  -t yuminggood/asana_dashboard:arm64 \
+  -t yuminggood/project-dashboard:arm64 \
   --build-arg VITE_BILLING_FIELD=請款金額 \
   --build-arg VITE_BILLING_TASK_FIELD=請款進展 .
 
 # 同時建 amd64 + arm64/v8 並推送（推薦給 Docker Hub）
 docker buildx build --platform linux/amd64,linux/arm64/v8 \
-  -t yuminggood/asana_dashboard:latest \
-  -t yuminggood/asana_dashboard:1.9.0 \
+  -t yuminggood/project-dashboard:latest \
+  -t yuminggood/project-dashboard:1.9.0 \
   --build-arg VITE_BILLING_FIELD=請款金額 \
   --build-arg VITE_BILLING_TASK_FIELD=請款進展 \
   --push .
@@ -184,14 +184,14 @@ docker buildx build --platform linux/amd64,linux/arm64/v8 \
 推送前請先 **`docker login`**：
 
 ```bash
-docker push yuminggood/asana_dashboard:latest
-docker push yuminggood/asana_dashboard:1.9.0
+docker push yuminggood/project-dashboard:latest
+docker push yuminggood/project-dashboard:1.9.0
 ```
 
 單機執行（前後端同一埠 **3001**）：
 
 ```bash
-docker run -p 3001:3001 --env-file .env yuminggood/asana_dashboard:latest
+docker run -p 3001:3001 --env-file .env yuminggood/project-dashboard:latest
 ```
 
 瀏覽器：<http://localhost:3001>
@@ -213,7 +213,7 @@ VITE_DEMO_MODE=true npm run dev:demo
 **建置 demo 映像**：
 
 ```bash
-docker build -t yuminggood/asana_dashboard:demo \
+docker build -t yuminggood/project-dashboard:demo \
   --build-arg VITE_DEMO_MODE=true \
   --build-arg VITE_BILLING_FIELD=請款金額 \
   --build-arg VITE_BILLING_TASK_FIELD=請款進展 .
@@ -230,7 +230,7 @@ Demo 容器**請勿**設定 `ASANA_DEFAULT_PAT`；展示資料全為前端 mock�
 
 ### GitHub Release 後自動推送 Docker Hub
 
-建立 **GitHub Release** 並**發佈**（`published`）時，會執行 [`.github/workflows/docker-publish.yml`](.github/workflows/docker-publish.yml)：以 **buildx** 建置 **linux/amd64** 與 **linux/arm64/v8**，並推送 **`yuminggood/asana_dashboard:latest`**、**發佈標籤**（若標籤為 `v1.x.x` 會另推送 **`1.x.x`**）。
+建立 **GitHub Release** 並**發佈**（`published`）時，會執行 [`.github/workflows/docker-publish.yml`](.github/workflows/docker-publish.yml)：以 **buildx** 建置 **linux/amd64** 與 **linux/arm64/v8**，並推送 **`yuminggood/project-dashboard:latest`**、**發佈標籤**（若標籤為 `v1.x.x` 會另推送 **`1.x.x`**）。
 
 請在儲存庫 **Settings → Secrets and variables → Actions** 設定：
 
@@ -243,7 +243,7 @@ Demo 容器**請勿**設定 `ASANA_DEFAULT_PAT`；展示資料全為前端 mock�
 
 ### 正式環境 Compose（`docker-compose.prod.yml`）
 
-- 預設 **`image: yuminggood/asana_dashboard:v1.14.0`**（或於同目錄 `.env` 設定 `DASHBOARD_IMAGE`）。
+- 預設 **`image: yuminggood/project-dashboard:v1.14.0`**（或於同目錄 `.env` 設定 `DASHBOARD_IMAGE`）。
 - 同目錄 `.env` 的 **`DATA_SOURCE`**、**`NOTION_ROOT_PAGE_ID`**、**`NOTION_TOKEN`** 會傳進容器。未設定時來源為 Asana。有整合金鑰則略過登入卡。
 - 對外對應 **3001**；環境變數可寫在與 compose 同目錄的 `.env`（群暉等環境相容說明見檔案內註解）。
 - 若主機是 ARM64 且要強制指定平台，可在 compose 服務加上 `platform: linux/arm64/v8`。
