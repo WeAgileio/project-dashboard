@@ -95,7 +95,7 @@ cp .env.example .env
 
 | 變數 | 說明 |
 |------|------|
-| `DASHBOARD_IMAGE` | **選用。** 覆寫預設映像（預設 `yuminggood/project-dashboard:v1.14.0`） |
+| `DASHBOARD_IMAGE` | **選用。** 覆寫預設映像（預設 `yuminggood/project-dashboard:v1.15.0`） |
 | `PORT` | **選用。** 容器內後端埠，預設 `3001`（對應 compose 內 `PORT: ${PORT:-3001}`） |
 | `DATA_SOURCE` | **選用。** `asana`（預設）或 `notion`。由 compose 傳入容器，改完重啟即可，不必重建映像 |
 | `NOTION_ROOT_PAGE_ID` | **選用。** Notion 專案總表根頁面 ID。未設定時用預設總表 |
@@ -243,7 +243,7 @@ Demo 容器**請勿**設定 `ASANA_DEFAULT_PAT`；展示資料全為前端 mock�
 
 ### 正式環境 Compose（`docker-compose.prod.yml`）
 
-- 預設 **`image: yuminggood/project-dashboard:v1.14.0`**（或於同目錄 `.env` 設定 `DASHBOARD_IMAGE`）。
+- 預設 **`image: yuminggood/project-dashboard:v1.15.0`**（或於同目錄 `.env` 設定 `DASHBOARD_IMAGE`）。
 - 同目錄 `.env` 的 **`DATA_SOURCE`**、**`NOTION_ROOT_PAGE_ID`**、**`NOTION_TOKEN`** 會傳進容器。未設定時來源為 Asana。有整合金鑰則略過登入卡。
 - 對外對應 **3001**；環境變數可寫在與 compose 同目錄的 `.env`（群暉等環境相容說明見檔案內註解）。
 - 若主機是 ARM64 且要強制指定平台，可在 compose 服務加上 `platform: linux/arm64/v8`。
@@ -294,7 +294,14 @@ docker-compose.prod.yml
 
 ## 版本紀錄
 
-### v1.14.0（目前 `package.json` 版本）
+### v1.15.0（目前 `package.json` 版本）
+
+- **年度請款進度**：專案進展、請款進展、請款進展·時間序在年份後面顯示該年已收金額、應收金額與百分比。
+- **名稱**：登入頁與瀏覽器標題改為 project-dashboard。
+- **映像**：新版本發佈到 `yuminggood/project-dashboard`。
+- **破壞性變更**：不再推送 `yuminggood/asana_dashboard`。既有部署若仍使用舊映像名稱，需改為 `yuminggood/project-dashboard`。
+
+### v1.14.0
 
 - **本週更新提示**：Notion 模式的「專案進展」裡，狀態更新若自最近一個週六以來有人改過，專案名稱前面會出現燈泡。
 - **資料來源標示**：Notion 模式在登出左邊顯示「數據來源:Notion」。
