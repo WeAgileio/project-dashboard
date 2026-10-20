@@ -11,6 +11,11 @@ import {
   pushAsanaProxyCacheBypass,
 } from "@/api/asana";
 import type { AsanaProject, AsanaSection, AsanaTask } from "@/types/asana";
+import {
+  billingProgressPercent,
+  dueCalendarYear,
+  yearBillingTotals,
+} from "@/utils/yearBillingProgress";
 
 export type SectionProgress = {
   section: AsanaSection;
@@ -39,6 +44,7 @@ export type ProjectYearBillingLine = {
   label: string;
   collected: number;
   total: number;
+  percent: number | null;
   isCurrentYear: boolean;
 };
 
@@ -327,55 +333,41 @@ function projectBillingFilledCoins(p: ProjectProgress): number {
 
 function projectBillingYearLines(p: ProjectProgress): ProjectYearBillingLine[] {
   const currentYear = new Date().getFullYear();
-  const byYear = new Map<number, { collected: number; total: number }>();
+  const dated: { dueOn: string; completed: boolean; amount: number }[] = [];
   let noDue = { collected: 0, total: 0 };
 
   for (const s of p.sections) {
     for (const t of s.tasks) {
-      const amountTotal =
-        typeof t.billingAmount === "number" ? t.billingAmount : 0;
-      const amountCollected =
-        t.completed && typeof t.billingAmount === "number"
-          ? t.billingAmount
-          : 0;
-
-      if (amountTotal === 0 && amountCollected === 0) continue;
-
-      const dueStr = typeof t.due_on === "string" ? t.due_on : "";
-      if (dueStr) {
-        const dt = new Date(dueStr);
-        const y = dt.getFullYear();
-        if (!Number.isNaN(y)) {
-          const cur = byYear.get(y) ?? { collected: 0, total: 0 };
-          byYear.set(y, {
-            collected: cur.collected + amountCollected,
-            total: cur.total + amountTotal,
-          });
-          continue;
-        }
+      const amount = typeof t.billingAmount === "number" ? t.billingAmount : 0;
+      if (!amount) continue;
+      const dueOn = typeof t.due_on === "string" ? t.due_on : "";
+      if (dueCalendarYear(dueOn) != null) {
+        dated.push({ dueOn, completed: t.completed, amount });
+        continue;
       }
-
-      noDue.total += amountTotal;
-      noDue.collected += amountCollected;
+      noDue.total += amount;
+      if (t.completed) noDue.collected += amount;
     }
   }
 
-  const yearEntries: ProjectYearBillingLine[] = Array.from(byYear.entries())
-    .sort((a, b) => a[0] - b[0])
-    .map(([year, v]) => ({
-      key: String(year),
-      label: String(year),
-      collected: v.collected,
-      total: v.total,
-      isCurrentYear: year === currentYear,
+  const yearEntries: ProjectYearBillingLine[] = yearBillingTotals(dated)
+    .filter((row) => row.total > 0)
+    .map((row) => ({
+      key: String(row.year),
+      label: String(row.year),
+      collected: row.collected,
+      total: row.total,
+      percent: row.percent,
+      isCurrentYear: row.year === currentYear,
     }));
 
-  if (noDue.total > 0 || noDue.collected > 0) {
+  if (noDue.total > 0) {
     yearEntries.push({
       key: "no-due",
       label: "-",
       collected: noDue.collected,
       total: noDue.total,
+      percent: billingProgressPercent(noDue.collected, noDue.total),
       isCurrentYear: false,
     });
   }

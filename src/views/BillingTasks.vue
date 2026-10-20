@@ -300,6 +300,12 @@ const billingRows = computed(() => {
                     <span class="project-year-amount-total">
                       {{ line.total.toLocaleString("zh-TW") }}
                     </span>
+                    <span
+                      v-if="line.percent != null"
+                      class="project-year-amount-percent"
+                    >
+                      {{ line.percent }}%
+                    </span>
                   </span>
                 </div>
               </div>
@@ -593,7 +599,7 @@ const billingRows = computed(() => {
 }
 .project-year-amount {
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: 1fr auto 1fr auto;
   gap: 4px;
   align-items: center;
   color: #6b7280;
@@ -612,6 +618,9 @@ const billingRows = computed(() => {
 }
 .project-year-amount-slash {
   text-align: center;
+}
+.project-year-amount-percent {
+  text-align: left;
 }
 .project-total-divider {
   width: 100%;

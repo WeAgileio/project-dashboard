@@ -28,6 +28,7 @@ import {
 } from "@/utils/projectDisplaySort";
 import { asanaProjectNotesUrl } from "@/utils/asanaUrls";
 import { progressUpdateHintLabel } from "@/utils/notionUpdateWindow";
+import { yearBillingTotals } from "@/utils/yearBillingProgress";
 import { isDemoMode } from "@/demo/isDemoMode";
 import { useAuthStore } from "@/stores/auth";
 
@@ -377,6 +378,42 @@ const monthColumns = computed((): MonthColumn[] => {
   const to = addMonths(maxYm, MONTH_BUFFER);
   return enumerateMonths(from, to);
 });
+
+const currentCalendarYear = new Date().getFullYear();
+
+const yearHeaderProgress = computed(() => {
+  const tasks: { dueOn: string | null; completed: boolean; amount: number }[] = [];
+  for (const item of searchFilteredDisplayItems.value) {
+    for (const section of item.sections) {
+      for (const task of section.tasks) {
+        if (!task.billingTaskYes) continue;
+        tasks.push({
+          dueOn: task.due_on,
+          completed: task.completed,
+          amount: typeof task.billingAmount === "number" ? task.billingAmount : 0,
+        });
+      }
+    }
+  }
+  const byYear = new Map<
+    number,
+    { collected: number; total: number; percent: number }
+  >();
+  for (const row of yearBillingTotals(tasks)) {
+    if (row.total > 0 && row.percent != null) {
+      byYear.set(row.year, {
+        collected: row.collected,
+        total: row.total,
+        percent: row.percent,
+      });
+    }
+  }
+  return byYear;
+});
+
+function yearHeaderProgressOf(year: number) {
+  return yearHeaderProgress.value.get(year) ?? null;
+}
 
 const yearHeaderSpans = computed(() => {
   const cols = monthColumns.value;
@@ -1019,9 +1056,35 @@ onActivated(() => {
                     v-for="span in yearHeaderSpans"
                     :key="'y-' + span.year + '-' + span.colspan"
                     class="th-year"
+                    :class="{ 'th-year--current': span.year === currentCalendarYear }"
                     :colspan="span.colspan"
                   >
-                    {{ span.year }}
+                    <div class="th-year-inner">
+                      <span class="th-year-label">{{ span.year }}</span>
+                      <span
+                        v-if="yearHeaderProgressOf(span.year)"
+                        class="th-year-progress"
+                        :title="
+                          yearHeaderProgressOf(span.year)!.collected.toLocaleString('zh-TW') +
+                          ' / ' +
+                          yearHeaderProgressOf(span.year)!.total.toLocaleString('zh-TW') +
+                          '  ' +
+                          yearHeaderProgressOf(span.year)!.percent +
+                          '%'
+                        "
+                      >
+                        <span>{{
+                          yearHeaderProgressOf(span.year)!.collected.toLocaleString("zh-TW")
+                        }}</span>
+                        <span class="th-year-progress-slash" aria-hidden="true">/</span>
+                        <span>{{
+                          yearHeaderProgressOf(span.year)!.total.toLocaleString("zh-TW")
+                        }}</span>
+                        <span class="th-year-progress-percent"
+                          >{{ yearHeaderProgressOf(span.year)!.percent }}%</span
+                        >
+                      </span>
+                    </div>
                   </th>
                 </tr>
                 <tr class="bytime-head-month">
@@ -1864,6 +1927,32 @@ onActivated(() => {
   vertical-align: middle;
   padding: 2px 5px;
   background: #f9fafb;
+}
+.bytime-head-year .th-year--current {
+  background: rgba(96, 165, 250, 0.18);
+}
+.bytime-head-year .th-year--current .th-year-label {
+  color: #60a5fa;
+}
+.th-year-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 6px;
+}
+.th-year-progress {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0;
+  color: #4b5563;
+  white-space: nowrap;
+}
+.th-year--current .th-year-progress {
+  color: #111827;
 }
 .bytime-head-month .th-month {
   font-size: 14px;
