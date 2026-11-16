@@ -95,10 +95,11 @@ cp .env.example .env
 
 | 變數 | 說明 |
 |------|------|
-| `DASHBOARD_IMAGE` | **選用。** 覆寫預設映像（預設 `yuminggood/project-dashboard:v1.15.0`） |
+| `DASHBOARD_IMAGE` | **選用。** 覆寫預設映像（預設 `yuminggood/project-dashboard:v1.16.0`） |
 | `PORT` | **選用。** 容器內後端埠，預設 `3001`（對應 compose 內 `PORT: ${PORT:-3001}`） |
 | `DATA_SOURCE` | **選用。** `asana`（預設）或 `notion`。由 compose 傳入容器，改完重啟即可，不必重建映像 |
 | `NOTION_ROOT_PAGE_ID` | **選用。** Notion 專案總表根頁面 ID。未設定時用預設總表 |
+| `NOTION_SPRINT_PAGE_ID` | **選用。** Sprint 趨勢的 Notion 頁面 ID。未設定時用預設頁 `10c53bdeb3b182b9b43b013316121b31`。該頁的「Sprint 表格彙整」須分享給同一個整合 |
 | `NOTION_TOKEN` | **選用。** Notion 整合金鑰。有填時略過登入卡，由伺服器代讀；沒填則仍用登入卡。不要提交到版本庫 |
 
 `docker-compose.prod.yml` **範例未**逐條列出 `ASANA_*`／`SESSION_SECRET`；部署時請在平台環境變數、自行加上 `env_file: .env`，或擴充 `environment`，讓容器內與本機一樣具備 OAuth 所需變數。
@@ -243,8 +244,8 @@ Demo 容器**請勿**設定 `ASANA_DEFAULT_PAT`；展示資料全為前端 mock�
 
 ### 正式環境 Compose（`docker-compose.prod.yml`）
 
-- 預設 **`image: yuminggood/project-dashboard:v1.15.0`**（或於同目錄 `.env` 設定 `DASHBOARD_IMAGE`）。
-- 同目錄 `.env` 的 **`DATA_SOURCE`**、**`NOTION_ROOT_PAGE_ID`**、**`NOTION_TOKEN`** 會傳進容器。未設定時來源為 Asana。有整合金鑰則略過登入卡。
+- 預設 **`image: yuminggood/project-dashboard:v1.16.0`**（或於同目錄 `.env` 設定 `DASHBOARD_IMAGE`）。
+- 同目錄 `.env` 的 **`DATA_SOURCE`**、**`NOTION_ROOT_PAGE_ID`**、**`NOTION_SPRINT_PAGE_ID`**、**`NOTION_TOKEN`** 會傳進容器。未設定時來源為 Asana，Sprint 頁用預設頁。有整合金鑰則略過登入卡。
 - 對外對應 **3001**；環境變數可寫在與 compose 同目錄的 `.env`（群暉等環境相容說明見檔案內註解）。
 - 若主機是 ARM64 且要強制指定平台，可在 compose 服務加上 `platform: linux/arm64/v8`。
 
@@ -294,7 +295,13 @@ docker-compose.prod.yml
 
 ## 版本紀錄
 
-### v1.15.0（目前 `package.json` 版本）
+### v1.16.0（目前 `package.json` 版本）
+
+- **Sprint 趨勢**：Notion 模式新增這一頁，看每個已完成 Sprint 的完成數、近三週完成平均、插件與插件平均。
+- **範圍**：預設顯示近六週，可改看近十二週或全部。點擊圖上的點會打開該 Sprint 的 Notion 頁。
+- **破壞性變更**：無。
+
+### v1.15.0
 
 - **年度請款進度**：專案進展、請款進展、請款進展·時間序在年份後面顯示該年已收金額、應收金額與百分比。
 - **名稱**：登入頁與瀏覽器標題改為 project-dashboard。

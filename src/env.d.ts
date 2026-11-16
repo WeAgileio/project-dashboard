@@ -12,3 +12,27 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+declare module "@/utils/sprintChart.mjs" {
+  export function formatSprintNumber(value: number): string;
+  export function buildSprintChart(
+    points: {
+      date: string;
+      done: number | null;
+      rate: number | null;
+      plugin: number | null;
+      pluginAvg?: number | null;
+      url?: string;
+    }[],
+    width: number
+  ): {
+    svg: string;
+    width: number;
+    height: number;
+    hits: { date: string; url: string; x: number; items: { label: string; color: string; text: string }[] }[];
+    series: {
+      key: string;
+      points: ({ x: number; y: number; value: number } | null)[];
+    }[];
+  };
+}

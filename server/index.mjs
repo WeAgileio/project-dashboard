@@ -9,8 +9,10 @@ import { fileURLToPath } from "node:url";
 import {
   assertRootReadable,
   handleNotionRequest,
+  loadSprintTrend,
   resolveDataSource,
   resolveRootPageId,
+  resolveSprintPageId,
 } from "./notionSource.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -43,6 +45,7 @@ try {
   process.exit(1);
 }
 const NOTION_ROOT_PAGE_ID = resolveRootPageId(process.env.NOTION_ROOT_PAGE_ID);
+const NOTION_SPRINT_PAGE_ID = resolveSprintPageId(process.env.NOTION_SPRINT_PAGE_ID);
 const NOTION_TOKEN = String(process.env.NOTION_TOKEN || "").trim();
 
 const {
@@ -229,7 +232,7 @@ export function apiCacheKey(source, accessToken, path, queryString) {
   return `${source}:${cacheUserIdFromToken(accessToken)}:${path}?${queryString}`;
 }
 
-function shouldBypassApiCache(req) {
+export function shouldBypassApiCache(req) {
   const cc = req.headers["cache-control"];
   if (cc && /no-cache|no-store|max-age=0/i.test(String(cc))) return true;
   const pragma = req.headers.pragma;
@@ -346,6 +349,31 @@ app.get("/api/notion/access", async (req, res) => {
   }
 });
 
+app.get("/api/notion/sprints", (req, res, next) => {
+  if (DATA_SOURCE !== "notion") {
+    return res.status(404).json({ message: "目前資料來源不是 Notion。" });
+  }
+  return requireAuth(req, res, next);
+}, async (req, res) => {
+  const token = notionAccessToken(req);
+  try {
+    const payload = await loadSprintTrend(token, NOTION_SPRINT_PAGE_ID, {
+      bypass: shouldBypassApiCache(req),
+    });
+    res.json(payload);
+  } catch (e) {
+    const status = e.status || e.response?.status || 500;
+    console.error("[notion] 讀取 Sprint 失敗：", e.response?.data || e.message);
+    const message =
+      status === 404 || status === 403
+        ? e.response
+          ? "找不到 Sprint 表格彙整，請確認該頁已分享給這個整合。"
+          : e.message
+        : "讀取 Sprint 表格彙整失敗";
+    res.status(status).json({ message });
+  }
+});
+
 // 將前端的 GET /api/* 轉發到 Asana API；Notion 模式改由專案總表組出相同形狀
 app.get("/api/*", requireAuth, async (req, res) => {
   const accessToken =
@@ -442,6 +470,7 @@ if (isExecutedDirectly()) {
   console.log("[config] 後端採用：");
   console.log(`  DATA_SOURCE=${DATA_SOURCE}`);
   console.log(`  NOTION_ROOT_PAGE_ID=${NOTION_ROOT_PAGE_ID}`);
+  console.log(`  NOTION_SPRINT_PAGE_ID=${NOTION_SPRINT_PAGE_ID}`);
   console.log(`  NOTION_TOKEN=${NOTION_TOKEN ? "（已設定）" : "（未設定）"}`);
   console.log(`  PORT=${PORT}`);
   app.listen(PORT, () => {

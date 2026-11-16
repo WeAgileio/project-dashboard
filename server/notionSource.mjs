@@ -4,8 +4,10 @@ import { createHash } from "node:crypto";
 const NOTION_VERSION = "2022-06-28";
 const NOTION_API = "https://api.notion.com/v1";
 const DEFAULT_ROOT_PAGE_ID = "";
+const DEFAULT_SPRINT_PAGE_ID = "10c53bdeb3b182b9b43b013316121b31";
 const TASK_DATABASE_TITLE = "任務";
 const STATUS_DATABASE_TITLE = "狀態更新";
+const SPRINT_DATABASE_TITLE = "Sprint 表格彙整";
 const BUNDLE_TTL_MS = 5 * 60_000;
 
 const notion = axios.create({ baseURL: NOTION_API });
@@ -16,6 +18,8 @@ const projectListCache = new Map();
 const taskBundleCache = new Map();
 /** @type {Map<string, string>} */
 const userNameCache = new Map();
+/** @type {Map<string, { expiresAt: number, payload: { sourceTitle: string, points: { date: string, done: number | null, rate: number | null, plugin: number | null }[] } }>} */
+const sprintTrendCache = new Map();
 
 export function resolveDataSource(raw) {
   const trimmed = raw == null ? "" : String(raw).trim();
@@ -30,6 +34,110 @@ export function resolveDataSource(raw) {
 export function resolveRootPageId(raw) {
   const trimmed = raw == null ? "" : String(raw).trim();
   return trimmed || DEFAULT_ROOT_PAGE_ID;
+}
+
+export function resolveSprintPageId(raw) {
+  const trimmed = raw == null ? "" : String(raw).trim();
+  return trimmed || DEFAULT_SPRINT_PAGE_ID;
+}
+
+export function formatSprintNumber(value) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "";
+  return Number.isInteger(value) ? String(value) : value.toFixed(1);
+}
+
+function sprintDateStart(prop) {
+  if (!prop || prop.type !== "date") return null;
+  const start = prop.date?.start;
+  if (typeof start !== "string" || !/^\d{4}-\d{2}-\d{2}/.test(start)) return null;
+  return start.slice(0, 10);
+}
+
+function finiteNumber(value) {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function sprintStatusName(prop) {
+  if (!prop || prop.type !== "status") return "";
+  return typeof prop.status?.name === "string" ? prop.status.name : "";
+}
+
+function sprintNumber(prop) {
+  if (!prop) return null;
+  if (prop.type === "number") return finiteNumber(prop.number);
+  if (prop.type === "formula" && prop.formula?.type === "number") return finiteNumber(prop.formula.number);
+  return null;
+}
+
+export function sprintPointsFromPages(pages) {
+  const rows = [];
+  for (const page of pages || []) {
+    const props = page?.properties || {};
+    const date = sprintDateStart(props["第一天｜日期"]);
+    if (!date || sprintStatusName(props["狀態"]) !== "完成") continue;
+    const rawUrl = typeof page?.url === "string" ? page.url.trim() : "";
+    rows.push({
+      date,
+      done: sprintNumber(props["最後一天｜完成數"]),
+      plugin: sprintNumber(props["最後一天｜插件"]),
+      order: sprintNumber(props["排序"]),
+      title: plainText(props["日期（原文）"]),
+      url: rawUrl.startsWith("https://") ? rawUrl : "",
+    });
+  }
+  rows.sort((a, b) => {
+    if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+    if (a.order == null && b.order != null) return 1;
+    if (a.order != null && b.order == null) return -1;
+    if (a.order != null && b.order != null && a.order !== b.order) return a.order - b.order;
+    if (a.title !== b.title) return a.title < b.title ? -1 : 1;
+    return 0;
+  });
+  return rows.map((row, index) => ({
+    date: row.date,
+    done: row.done,
+    rate: trailingAverage(rows, index, "done"),
+    plugin: row.plugin,
+    pluginAvg: trailingAverage(rows, index, "plugin"),
+    url: row.url,
+  }));
+}
+
+function trailingAverage(rows, index, key) {
+  if (index < 2) return null;
+  const window = [rows[index - 2][key], rows[index - 1][key], rows[index][key]];
+  if (window.some((value) => value == null)) return null;
+  return Math.round(((window[0] + window[1] + window[2]) / 3) * 10) / 10;
+}
+
+export function clearSprintTrendCache() {
+  sprintTrendCache.clear();
+}
+
+export async function loadSprintTrend(token, pageId, options = {}) {
+  const bypass = Boolean(options.bypass);
+  const now = typeof options.now === "number" ? options.now : Date.now();
+  const listBlocks = options.listBlocks || listAllBlocks;
+  const queryPages = options.queryPages || queryAllPages;
+  const key = `${tokenHash(token)}:${pageId}`;
+  if (!bypass) {
+    const hit = sprintTrendCache.get(key);
+    if (hit && hit.expiresAt > now) return hit.payload;
+  }
+  const blocks = await listBlocks(token, pageId);
+  const databaseId = childDatabaseId(blocks, SPRINT_DATABASE_TITLE);
+  if (!databaseId) {
+    const err = new Error("找不到 Sprint 表格彙整，請確認該頁已分享給這個整合。");
+    err.status = 404;
+    throw err;
+  }
+  const pages = await queryPages(token, databaseId);
+  const payload = {
+    sourceTitle: SPRINT_DATABASE_TITLE,
+    points: sprintPointsFromPages(pages),
+  };
+  sprintTrendCache.set(key, { payload, expiresAt: now + BUNDLE_TTL_MS });
+  return payload;
 }
 
 export function childDatabaseId(blocks, title) {

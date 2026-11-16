@@ -57,6 +57,40 @@ api.interceptors.response.use(
   }
 );
 
+export type SprintPoint = {
+  date: string;
+  done: number | null;
+  rate: number | null;
+  plugin: number | null;
+  pluginAvg: number | null;
+  url: string;
+};
+
+function sprintNumber(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+/** 讀取 Notion「Sprint 表格彙整」。沿用同一個 axios 實例，因此會帶登入金鑰與快取略過。 */
+export async function fetchSprintTrend(): Promise<{ sourceTitle: string; points: SprintPoint[] }> {
+  const res = await api.get("/notion/sprints");
+  const raw = Array.isArray(res.data?.points) ? res.data.points : [];
+  const points = raw
+    .map((row: { date?: unknown; done?: unknown; rate?: unknown; plugin?: unknown; pluginAvg?: unknown; url?: unknown }) => ({
+      date: typeof row?.date === "string" ? row.date : "",
+      done: sprintNumber(row?.done),
+      rate: sprintNumber(row?.rate),
+      plugin: sprintNumber(row?.plugin),
+      pluginAvg: sprintNumber(row?.pluginAvg),
+      url: typeof row?.url === "string" && row.url.startsWith("https://") ? row.url : "",
+    }))
+    .filter((row) => row.date);
+  const sourceTitle =
+    typeof res.data?.sourceTitle === "string" && res.data.sourceTitle.trim()
+      ? res.data.sourceTitle.trim()
+      : "Sprint 表格彙整";
+  return { sourceTitle, points };
+}
+
 // ─── 基礎 API 請求 ────────────────────────────────────────────────────────────
 
 /** 取得目前使用者可存取的 workspace 列表 */

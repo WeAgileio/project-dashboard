@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, type Component } from "vue";
+import { ref, computed, onMounted, defineAsyncComponent, type Component } from "vue";
 import { isDemoMode } from "@/demo/isDemoMode";
 import { useAuthStore } from "@/stores/auth";
 import Login from "@/views/Login.vue";
@@ -15,7 +15,8 @@ type Tab =
   | "trends"
   | "progressByTime"
   | "billingTasks"
-  | "billingTasksByTime";
+  | "billingTasksByTime"
+  | "sprintTrend";
 
 const currentTab = ref<Tab>("progressByTime");
 
@@ -24,9 +25,17 @@ const tabComponents: Record<Tab, Component> = {
   progressByTime: ProgressTimelineByTime,
   billingTasks: BillingTasks,
   billingTasksByTime: BillingTasksByTime,
+  sprintTrend: defineAsyncComponent(() => import("@/views/SprintTrend.vue")),
 };
 
-const currentView = computed(() => tabComponents[currentTab.value]);
+const sprintTabVisible = computed(() => !demoMode && auth.dataSource === "notion");
+
+const currentView = computed(() => {
+  if (currentTab.value === "sprintTrend" && !sprintTabVisible.value) {
+    return tabComponents.progressByTime;
+  }
+  return tabComponents[currentTab.value];
+});
 
 onMounted(async () => {
   if (!demoMode) await auth.loadDataSource();
@@ -75,6 +84,15 @@ onMounted(async () => {
           @click="currentTab = 'billingTasksByTime'"
         >
           請款進展·時間序
+        </button>
+        <button
+          v-if="sprintTabVisible"
+          type="button"
+          class="nav-tab"
+          :class="{ active: currentTab === 'sprintTrend' }"
+          @click="currentTab = 'sprintTrend'"
+        >
+          Sprint 趨勢
         </button>
         </div>
       </div>
